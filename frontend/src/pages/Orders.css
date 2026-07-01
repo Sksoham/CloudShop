@@ -1,0 +1,28 @@
+.orders-page{
+    max-width:900px;
+    margin:40px auto;
+    padding:20px;
+}
+
+.orders-page h1{
+    margin-bottom:30px;
+}
+
+.order-card{
+    background:white;
+    border-radius:15px;
+    padding:25px;
+    margin-bottom:25px;
+    box-shadow:0 10px 25px rgba(0,0,0,.08);
+}
+
+.book-row{
+    display:flex;
+    justify-content:space-between;
+    padding:10px 0;
+}
+
+.order-card hr{
+    margin:20px 0;
+}
+

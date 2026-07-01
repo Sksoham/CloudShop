@@ -1,0 +1,22 @@
+.checkout-btn{
+    width:100%;
+    margin-top:20px;
+    padding:16px;
+    border:none;
+    border-radius:12px;
+    background:#2563eb;
+    color:white;
+    font-size:18px;
+    font-weight:600;
+    cursor:pointer;
+    transition:0.3s;
+}
+
+.checkout-btn:hover{
+    background:#1d4ed8;
+}
+
+.cart-right a{
+    text-decoration:none;
+    display:block;
+}
