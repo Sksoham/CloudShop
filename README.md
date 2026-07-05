@@ -1,4 +1,4 @@
-[README (1).md](https://github.com/user-attachments/files/29677207/README.1.md)
+[README (2).md](https://github.com/user-attachments/files/29677286/README.2.md)
 # 📚 CloudShop
 
 CloudShop is a full-stack e-commerce web app for browsing and buying tech books (AWS, Docker, Kubernetes, React, and more). It has a React frontend and a Node.js/Express + MongoDB backend, with user authentication, a shopping cart, wishlist, and order history.
@@ -115,6 +115,69 @@ The app will be available at the URL Vite prints (typically `http://localhost:51
 | POST   | `/api/auth/login`      | Log in and receive a JWT        |
 | POST   | `/api/orders`          | Create a new order              |
 | GET    | `/api/orders/:userId`  | Get all orders for a user       |
+
+## ☁️ AWS Deployment
+
+CloudShop is deployed on AWS using a scalable, self-healing architecture:
+
+- **Amazon Machine Image (AMI)** — a custom AMI is baked with Node.js, the app dependencies, and a process manager (e.g. PM2) pre-installed, so new instances boot ready to serve traffic.
+- **Launch Template** — defines the instance configuration (AMI, instance type, key pair, security groups, user data script) used to launch new EC2 instances consistently.
+- **Auto Scaling Group (ASG)** — launches and manages EC2 instances from the Launch Template across multiple Availability Zones, scaling out/in based on demand (e.g. CPU utilization) and automatically replacing unhealthy instances.
+- **Application Load Balancer (ALB)** — distributes incoming HTTP(S) traffic across the healthy instances in the ASG, performs health checks, and is the single entry point for the application.
+- **Amazon EC2** — the underlying virtual machines running the Node.js/Express backend (and optionally the built frontend, if served from the same instances).
+
+### Architecture Flow
+
+```
+                 ┌───────────────────────┐
+   Users  ─────► │  Application Load     │
+                 │  Balancer (ALB)       │
+                 └───────────┬───────────┘
+                             │  health checks + routing
+                             ▼
+                 ┌───────────────────────┐
+                 │  Auto Scaling Group   │
+                 │  (Launch Template)    │
+                 ├───────────┬───────────┤
+                 ▼           ▼           ▼
+              EC2 #1       EC2 #2      EC2 #N
+             (from AMI)  (from AMI)  (from AMI)
+                             │
+                             ▼
+                    MongoDB (Atlas / external)
+```
+
+### Deployment Steps (high level)
+
+1. **Build/prepare the app**
+   - Backend: `cd backend && npm install --production`
+   - Frontend: `cd frontend && npm install && npm run build` (deploy the `dist/` output to a static host, e.g. S3/CloudFront, or serve it from the EC2 instances alongside the API)
+
+2. **Create the AMI**
+   - Launch a base EC2 instance (e.g. Amazon Linux 2023 or Ubuntu).
+   - Install Node.js, clone/copy the app, install dependencies, and configure environment variables (`.env` or, preferably, AWS Systems Manager Parameter Store / Secrets Manager).
+   - Set up the app to run under a process manager (e.g. `pm2 start server.js` with `pm2 startup`) so it restarts on boot/crash.
+   - Create an AMI from this configured instance (EC2 → Actions → Image → Create Image).
+
+3. **Create a Launch Template**
+   - Select the custom AMI, instance type, key pair, security group (allow inbound HTTP/HTTPS from the ALB, and SSH restricted to your IP), and IAM instance profile.
+   - Add a user data script if you need to pull the latest code/config at boot instead of baking everything into the AMI.
+
+4. **Create the Auto Scaling Group**
+   - Attach it to the Launch Template.
+   - Configure desired/min/max capacity, and spread instances across multiple subnets/Availability Zones for high availability.
+   - Define scaling policies (e.g. target tracking on average CPU utilization).
+   - Attach the ASG to the ALB's target group so new instances are automatically registered.
+
+5. **Create the Application Load Balancer**
+   - Create a target group pointing at the app's port (e.g. 5000) with a health check path (e.g. `/`, which returns the "CloudShop Backend is Running Successfully!" message).
+   - Create the ALB (internet-facing), attach listeners (HTTP/HTTPS), and route traffic to the target group.
+   - (Optional) Attach an ACM certificate to the ALB listener for HTTPS, and put a Route 53 domain in front of it.
+
+6. **Point the frontend at the ALB**
+   - Update `frontend/src/api/api.js`'s `baseURL` to the ALB's DNS name (or your custom domain) instead of a hardcoded instance IP, so the frontend keeps working as instances scale in/out.
+
+> ⚠️ As with local development, never bake real secrets (`MONGO_URI`, `JWT_SECRET`) directly into a public AMI or repo — use environment variables injected at boot via user data, or a secrets manager.
 
 ## 📝 License
 
